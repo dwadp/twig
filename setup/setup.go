@@ -12,7 +12,7 @@ var (
 	out io.Writer
 )
 
-// Setup will create configuration file inside your home directory (.pprox/config.yml)
+// Setup will create configuration file inside your home directory (.twig/config.yml)
 // after the configuration file created, you should fill it with your php installation paths
 func Setup(o io.Writer, stub string) error {
 	out = o
