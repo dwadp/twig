@@ -1,0 +1,10 @@
+php:
+  - version: 7.2
+    executable_path: /your/path/to/php7.2.exe
+    default: true
+  - version: 7.4
+    executable_path: /your/path/to/php7.4.exe
+  - version: 8.1
+    executable_path: /your/path/to/php8.1.exe
+composer:
+  executable_path: /your/composer.phar/path
