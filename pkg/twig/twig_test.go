@@ -2,11 +2,12 @@ package twig
 
 import (
 	"fmt"
-	"github.com/dwadp/twig/pkg/config"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"os/exec"
 	"testing"
+
+	"github.com/dwadp/twig/pkg/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func fakeExecCommand(command string, args ...string) *exec.Cmd {
@@ -35,10 +36,6 @@ composer:
 	assert.NoError(t, cfg.Init())
 	assert.NoError(t, cfg.Read())
 
-	defer func(t *testing.T) {
-		assert.NoError(t, config.CleanupTestFiles("test-config"))
-	}(t)
-
 	RunPHP(cfg, []string{"artisan", "route:list"})
 
 	execCommand = fakeExecCommand
@@ -50,6 +47,10 @@ composer:
 	if string(out) != "something" {
 		t.Errorf("Expected %q, got %q", "someting", out)
 	}
+
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.BasePath())
+	})
 }
 
 func TestHelperProcess(t *testing.T) {

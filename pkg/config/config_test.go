@@ -1,13 +1,14 @@
 package config
 
 import (
-	"github.com/Masterminds/semver/v3"
-	"github.com/mitchellh/go-homedir"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/mitchellh/go-homedir"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig_Path(t *testing.T) {
@@ -46,29 +47,29 @@ func TestConfig_NewWithOption(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "the stub", cfg.stub)
+
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.BasePath())
+	})
 }
 
 func TestConfig_Init(t *testing.T) {
 	cfg := createTestConfig(t)
 
-	// Remove the configuration files & folder
-	defer func() {
-		if err := CleanupTestFiles("twig-test"); err != nil {
-			assert.NoError(t, err)
-		}
-	}()
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.BasePath())
+	})
 
 	if _, err := os.Stat(cfg.FilePath()); os.IsNotExist(err) {
 		t.Fatal("expect configuration file was created but it doesn't")
 	}
 
 	file, err := os.Open(cfg.FilePath())
-
-	assert.NoError(t, err, "failed to open the config file")
-
 	defer func() {
 		assert.NoError(t, file.Close(), "error when closing the file")
 	}()
+
+	assert.NoError(t, err, "failed to open the config file")
 
 	buff, err := io.ReadAll(file)
 
@@ -93,11 +94,6 @@ composer:
 	assert.NoError(t, err)
 	assert.NoError(t, cfg.Init())
 
-	// Remove the configuration files & folder
-	defer func() {
-		assert.NoError(t, CleanupTestFiles("twig-test"))
-	}()
-
 	assert.NoError(t, err, "error during config initialization")
 	assert.NoError(t, cfg.Read())
 
@@ -111,15 +107,14 @@ composer:
 		assert.NoError(t, err)
 		assert.Truef(t, version.Equal(php.Semver), "want (%s) got (%s)", version, php.Semver)
 	}
+
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.BasePath())
+	})
 }
 
 func TestConfig_WithCacheStore(t *testing.T) {
 	cfg, err := NewConfig("twig-test", WithStore(NewInMemStore()))
-
-	// Remove the configuration files & folder
-	defer func() {
-		assert.NoError(t, CleanupTestFiles("twig-test"))
-	}()
 
 	assert.NoError(t, err)
 	assert.NoError(t, cfg.Init())
@@ -130,6 +125,10 @@ func TestConfig_WithCacheStore(t *testing.T) {
 	assert.NotNil(t, cfg.Composer)
 	assert.NotEmpty(t, cfg.name)
 	assert.NotEmpty(t, cfg.dir)
+
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.BasePath())
+	})
 }
 
 func createTestConfig(t *testing.T) *Config {

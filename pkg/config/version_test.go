@@ -1,8 +1,10 @@
 package config
 
 import (
-	"github.com/stretchr/testify/assert"
+	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig_GetPreferredVersion(t *testing.T) {
@@ -39,4 +41,8 @@ func TestConfig_GetPreferredVersion(t *testing.T) {
 			assert.Equal(t, test.want, php.Version)
 		})
 	}
+
+	t.Cleanup(func() {
+		os.RemoveAll(cfg.BasePath())
+	})
 }
