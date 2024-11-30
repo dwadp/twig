@@ -36,14 +36,19 @@ The `composer` command will be proxied by `twig` and will use the PHP version th
 > [!TIP]
 > To get more information about the commands, you can run `twig --help` or `twig {command} --help`
 
-## Installation [WIP]
+## Installation
 Just download the pre-compiled binary from the [release page](https://github.com/dwadp/twig/releases) according to your operating system, and place it within your desired folder.
 
-### Pre-Built Binary [WIP]
-#### Linux
+### Pre-Built Binary
+#### Linux / MacOS
 Run the following command to download the executable binary:
 ```sh
-curl -o {release_url}
+curl -sLO https://github.com/dwadp/twig/releases/download/v2.0.0/twig-2.0.0-linux_x86_64.tar.gz
+```
+
+#### Extract the binary
+```sh
+tar -xzf twig-2.0.0-linux_x86_64.tar.gz
 ```
 
 Add the path to the binary on your `.bashrc` or `.zshrc` or any of your shell configuration file. Or if you prefer to use the standard binary location, you can put it in `/usr/local/bin` directory:
