@@ -18,17 +18,22 @@ func TestConfig_GetPreferredVersion(t *testing.T) {
 		{
 			name:        "should get the PHP 8.1",
 			constraints: "^7.4 || ^8.0",
-			want:        "8.1",
+			want:        "7.4",
 		},
 		{
 			name:        "should get the PHP 7.4",
 			constraints: "^7.2 || ^7.4",
-			want:        "7.4",
+			want:        "7.2",
 		},
 		{
 			name:        "should get the PHP 7.2",
 			constraints: "<=7.2",
 			want:        "7.2",
+		},
+		{
+			name:        "should get the PHP 8.0",
+			constraints: "^8.0 || ^8.1",
+			want:        "8.0",
 		},
 	}
 

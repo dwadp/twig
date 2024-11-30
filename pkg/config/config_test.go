@@ -100,7 +100,7 @@ composer:
 	assert.NotEmpty(t, cfg.Composer.ExecutablePath, "expected composer executable path to exists but it doesn't")
 	assert.Lenf(t, cfg.PHP, 4, "len of PHP should be 4 but got (%d)", len(cfg.PHP))
 
-	orders := []string{"8.1", "8.0", "7.4", "7.2"}
+	orders := []string{"7.2", "7.4", "8.0", "8.1"}
 
 	for k, php := range cfg.PHP {
 		version, err := semver.NewVersion(orders[k])
