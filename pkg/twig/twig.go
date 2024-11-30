@@ -3,17 +3,12 @@ package twig
 import (
 	"errors"
 	"io"
-	"log"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
-	"github.com/creack/pty"
 	"github.com/dwadp/twig/pkg/config"
 	"github.com/dwadp/twig/pkg/schema"
-	"golang.org/x/term"
 )
 
 var execCommand = exec.Command
@@ -21,52 +16,6 @@ var execCommand = exec.Command
 func runPhpExec() ([]byte, error) {
 	cmd := execCommand("php", "-v")
 	return cmd.CombinedOutput()
-}
-
-func runInTTY(cmd *exec.Cmd) error {
-	ptmx, err := pty.Start(cmd)
-	if err != nil {
-		return err
-	}
-
-	defer func() { _ = ptmx.Close() }()
-
-	resizeSignalCh := make(chan os.Signal, 1)
-	signal.Notify(resizeSignalCh, syscall.SIGWINCH)
-
-	go func() {
-		for range resizeSignalCh {
-			if err := pty.InheritSize(os.Stdin, ptmx); err != nil {
-				log.Printf("error resizing pty: %s", err)
-			}
-		}
-	}()
-
-	resizeSignalCh <- syscall.SIGWINCH
-	defer func() {
-		signal.Stop(resizeSignalCh)
-		close(resizeSignalCh)
-	}()
-
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		sig := <-sigCh
-		_ = cmd.Process.Signal(sig)
-	}()
-
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-	if err != nil {
-		panic(err)
-	}
-	defer func() {
-		_ = term.Restore(int(os.Stdin.Fd()), oldState)
-	}()
-
-	go func() { _, _ = io.Copy(ptmx, os.Stdin) }()
-	_, _ = io.Copy(os.Stdout, ptmx)
-
-	return nil
 }
 
 func isRootProjectDir(cwd string) bool {
