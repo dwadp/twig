@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/dwadp/twig/pkg/config"
@@ -40,7 +41,7 @@ composer:
 
 	execCommand = fakeExecCommand
 	defer func() { execCommand = exec.Command }()
-	out, err := runPhpExec("docker/whalesay")
+	out, err := runPhpExec()
 	if err != nil {
 		t.Errorf("Expected nil error, got %#v", err)
 	}
@@ -51,6 +52,50 @@ composer:
 	t.Cleanup(func() {
 		os.RemoveAll(cfg.BasePath())
 	})
+}
+
+func TestIsRootProjectDir(t *testing.T) {
+	tempDir := t.TempDir()
+
+	assert.False(t, isRootProjectDir(tempDir))
+
+	tests := []struct {
+		name   string
+		object string
+		isDir  bool
+		want   bool
+	}{
+		{
+			name:   "determine by composer.json",
+			object: "composer.json",
+			want:   true,
+		},
+		{
+			name:   "determine by vendor directory",
+			object: "vendor",
+			isDir:  true,
+			want:   true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if !test.isDir {
+				f, err := os.OpenFile(filepath.Join(tempDir, test.object), os.O_CREATE, 0644)
+				assert.NoError(t, err)
+				defer f.Close()
+			} else {
+				err := os.Mkdir(filepath.Join(tempDir, test.object), 0755)
+				assert.NoError(t, err)
+			}
+
+			assert.True(t, isRootProjectDir(tempDir))
+
+			t.Cleanup(func() {
+				os.RemoveAll(filepath.Join(tempDir, test.object))
+			})
+		})
+	}
 }
 
 func TestHelperProcess(t *testing.T) {

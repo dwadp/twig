@@ -8,17 +8,18 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(phpCmd)
+	rootCmd.AddCommand(composerCmd)
 }
 
-var phpCmd = &cobra.Command{
-	Use:                "php",
-	Short:              "Run a PHP command",
+// composerCmd represents the composer command
+var composerCmd = &cobra.Command{
+	Use:                "composer",
+	Short:              "Run a Composer command",
 	Args:               cobra.ArbitraryArgs,
 	DisableFlagParsing: true, // Accepts any given command line flags and let PHP handle them
 	PreRun:             preRun,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := twig.RunPHP(cfg, args); err != nil {
+		if err := twig.RunComposer(cfg, args); err != nil {
 			cmd.PrintErrln(err)
 			os.Exit(1)
 		}
