@@ -3,19 +3,24 @@ package config
 import (
 	_ "embed"
 	"fmt"
-	"github.com/Masterminds/semver/v3"
-	"github.com/mitchellh/go-homedir"
-	"gopkg.in/yaml.v3"
 	"io"
 	"os"
 	"path"
+
+	"github.com/Masterminds/semver/v3"
+	"github.com/mitchellh/go-homedir"
+	"gopkg.in/yaml.v3"
 )
 
-//go:embed config_stub.stub
+//go:embed config.stub
 var cfgStub string
 
 const (
-	configKeyStore = "twig.config"
+	configKeyStore       = "twig.config"
+	defaultFileMode      = 0664
+	readOnlyFileFlag     = os.O_RDONLY
+	readWriteFileFlag    = os.O_RDWR | os.O_TRUNC
+	readOrCreateFileFlag = os.O_CREATE | os.O_RDWR
 )
 
 type PHP struct {
@@ -43,7 +48,7 @@ type Option func(*Config)
 func NewConfig(name string, options ...Option) (*Config, error) {
 	dir, err := homedir.Dir()
 	if err != nil {
-		return nil, fmt.Errorf("[CONFIG] unable to get user home directory: %w\n", err)
+		return nil, fmt.Errorf("config: unable to get home user directory: %w\n", err)
 	}
 
 	if name == "" {
@@ -61,6 +66,8 @@ func NewConfig(name string, options ...Option) (*Config, error) {
 
 	return cfg, nil
 }
+
+// TODO: Add WithBaseDir option to modify the base configuration directory
 
 func WithStub(stub string) Option {
 	return func(c *Config) {
@@ -90,33 +97,34 @@ func (c *Config) FilePath() string {
 }
 
 func (c *Config) Read() (err error) {
+	// If there is a configuration stored in the cache, we don't want to manually parse the file
+	// to obtain which version is needed in order the program to run
 	if c.store != nil {
 		if err := c.store.Get(configKeyStore, c); err != nil {
 			return err
 		}
 	}
 
-	cfgFile, err := os.Open(c.FilePath())
+	cfgFile, err := os.OpenFile(c.FilePath(), readOnlyFileFlag, defaultFileMode)
+	if err != nil {
+		return fmt.Errorf("config: failed to open file: %w\n", err)
+	}
+
 	defer func() {
 		err = cfgFile.Close()
 	}()
 
+	buf, err := io.ReadAll(cfgFile)
 	if err != nil {
-		return fmt.Errorf("[CONFIG] error opening config file: %w\n", err)
+		return fmt.Errorf("config: error reading the file: %w\n", err)
 	}
 
-	buff, err := io.ReadAll(cfgFile)
-	if err != nil {
-		return fmt.Errorf("[CONFIG] error reading config file: %w\n", err)
-	}
-
-	if err := yaml.Unmarshal(buff, c); err != nil {
-		return fmt.Errorf("[CONFIG] error parsing config file: %w\n", err)
+	if err := yaml.Unmarshal(buf, c); err != nil {
+		return fmt.Errorf("config: error parsing the file: %w\n", err)
 	}
 
 	err = c.createSortSemver()
 
-	// TODO save the versions to the caching layer
 	if c.store != nil {
 		if err := c.store.Save(configKeyStore, c); err != nil {
 			return err
@@ -126,6 +134,62 @@ func (c *Config) Read() (err error) {
 	return
 }
 
+// IsVersionExist will check if the given version exists in the configuration file
+func (c *Config) IsVersionExist(version string) bool {
+	for _, php := range c.PHP {
+		if php.Version == version {
+			return true
+		}
+	}
+
+	return false
+}
+
+// SetDefault will set the given version as the default version
+func (c *Config) SetDefault(version string) error {
+	if err := c.Read(); err != nil {
+		return err
+	}
+
+	if !c.IsVersionExist(version) {
+		return fmt.Errorf("config: version %s does not exist\n", version)
+	}
+
+	for _, php := range c.PHP {
+		if php.Version == version {
+			php.IsDefault = true
+		} else {
+			php.IsDefault = false
+		}
+	}
+
+	return c.writeFile()
+}
+
+func (c *Config) writeFile() error {
+	b, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("config: error marshalling config: %w\n", err)
+	}
+
+	file, err := os.OpenFile(c.FilePath(), readWriteFileFlag, defaultFileMode)
+	if err != nil {
+		return fmt.Errorf("config: error opening the file: %w\n", err)
+	}
+	defer file.Close()
+
+	if _, err := file.WriteString(string(b)); err != nil {
+		return fmt.Errorf("config: error writing to the file: %w\n", err)
+	}
+
+	if err := file.Sync(); err != nil {
+		return fmt.Errorf("config: error saving the file: %w\n", err)
+	}
+
+	return nil
+}
+
+// createDir Creates the base directory for the configuration file
 func (c *Config) createDir() (err error) {
 	_, err = os.Stat(c.BasePath())
 
@@ -136,28 +200,29 @@ func (c *Config) createDir() (err error) {
 	return
 }
 
-func (c *Config) createFile() (err error) {
-	var file *os.File
+// createFile will create base configuration file based on the stub file defined in config.stub
+func (c *Config) createFile() error {
+	_, err := os.Stat(c.FilePath())
 
-	if _, err := os.Stat(c.FilePath()); os.IsNotExist(err) {
-		file, err = os.Create(c.FilePath())
+	if err == nil {
+		return fmt.Errorf("config: file already exist\n")
 	}
 
-	if file != nil {
-		defer func() {
-			err = file.Close()
-		}()
-
-		stub := cfgStub
-
-		if c.stub != "" {
-			stub = c.stub
-		}
-
-		if _, err = file.WriteString(stub); err != nil {
-			return fmt.Errorf("[CONFIG] error creating file: %w\n", err)
-		}
+	file, err := os.OpenFile(c.FilePath(), readOrCreateFileFlag, defaultFileMode)
+	if err != nil {
+		return fmt.Errorf("config: failed to create file: %w\n", err)
 	}
 
-	return
+	defer file.Close()
+
+	stub := cfgStub
+	if c.stub != "" {
+		stub = c.stub
+	}
+
+	if _, err = file.WriteString(stub); err != nil {
+		return fmt.Errorf("config: failed to write stub file: %w\n", err)
+	}
+
+	return nil
 }
