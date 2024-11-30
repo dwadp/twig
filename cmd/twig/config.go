@@ -1,6 +1,8 @@
 package twig
 
 import (
+	"os"
+
 	"github.com/spf13/cobra"
 )
 
@@ -18,8 +20,10 @@ var configCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		locate, err := cmd.Flags().GetBool("locate")
 		if err != nil {
-			cmd.PrintErrf("Failed to parse the \"locate\" flag: %v\n", err)
+			cmd.PrintErr(err)
+			os.Exit(1)
 		}
+
 		if locate {
 			cmd.Printf("The twig configuration file is located in %q\n", cfg.FilePath())
 		}
